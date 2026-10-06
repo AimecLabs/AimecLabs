@@ -1,0 +1,22 @@
+name: Local Stack Validation
+
+on:
+  pull_request:
+    paths:
+      - "deploy/local/**"
+      - ".github/workflows/local-stack.yml"
+  push:
+    branches: [main]
+    paths:
+      - "deploy/local/**"
+      - ".github/workflows/local-stack.yml"
+
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate compose model
+        run: docker compose -f deploy/local/docker-compose.yml config
+      - name: Validate smoke checker
+        run: python -m py_compile deploy/local/smoke.py
