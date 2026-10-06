@@ -79,7 +79,7 @@ services:
 
   agent_computer:
     build:
-      context: https://github.com/AimecLabs/aimec-agent-computer.git#roadmap-container-defaults-20261006
+      context: https://github.com/AimecLabs/aimec-agent-computer.git#main
       dockerfile: docker/app/dockerfile
     ports: ["${AGENT_COMPUTER_PORT:-8004}:8000"]
     environment:
