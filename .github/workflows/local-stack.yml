@@ -16,9 +16,36 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: packaging
       - name: Validate compose model
-        run: docker compose -f deploy/local/docker-compose.yml config
+        run: docker compose -f packaging/deploy/local/docker-compose.yml config
       - name: Validate smoke checker
-        run: python -m py_compile deploy/local/smoke.py
+        run: python -m py_compile packaging/deploy/local/smoke.py
+      - uses: actions/checkout@v4
+        with:
+          repository: AimecLabs/aimec-intelligence-platform
+          path: services/platform
+      - uses: actions/checkout@v4
+        with:
+          repository: AimecLabs/world-model
+          path: services/world_model
+      - uses: actions/checkout@v4
+        with:
+          repository: AimecLabs/aimec-nimble-engine
+          path: services/nimble
+      - uses: actions/checkout@v4
+        with:
+          repository: AimecLabs/timesfm-engine
+          path: services/timesfm
+      - uses: actions/checkout@v4
+        with:
+          repository: AimecLabs/aimec-agent-computer
+          path: services/agent_computer
       - name: Build cross-stack application images
-        run: docker compose -f deploy/local/docker-compose.yml build platform world_model nimble timesfm agent_computer
+        run: |
+          docker build -t aimec-platform:test services/platform
+          docker build -t aimec-world-model:test services/world_model
+          docker build --build-arg UV_DOCKER_IMAGE=ghcr.io/astral-sh/uv:0.10.0 --build-arg PYTHON_DOCKER_IMAGE=python:3.12-slim -f services/nimble/dockerfile -t aimec-nimble:test services/nimble
+          docker build -t aimec-timesfm:test services/timesfm
+          docker build -f services/agent_computer/docker/app/dockerfile -t aimec-agent-computer:test services/agent_computer
