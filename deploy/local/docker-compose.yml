@@ -1,0 +1,43 @@
+name: aimec-local-stack
+
+services:
+  platform:
+    image: ${AIMEC_PLATFORM_IMAGE:-ghcr.io/aimeclabs/aimec-intelligence-platform:latest}
+    ports: ["${AIMEC_PLATFORM_PORT:-8000}:8000"]
+    env_file: [.env]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  world_model:
+    image: ${WORLD_MODEL_IMAGE:-ghcr.io/aimeclabs/world-model:latest}
+    ports: ["${WORLD_MODEL_PORT:-8001}:8000"]
+    env_file: [.env]
+    depends_on:
+      platform: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  nimble:
+    image: ${NIMBLE_IMAGE:-ghcr.io/aimeclabs/aimec-nimble-engine:latest}
+    ports: ["${NIMBLE_PORT:-8002}:8000"]
+    env_file: [.env]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
+  timesfm:
+    image: ${TIMESFM_IMAGE:-ghcr.io/aimeclabs/timesfm-engine:latest}
+    ports: ["${TIMESFM_PORT:-8003}:8000"]
+    env_file: [.env]
+
+  agent_computer:
+    image: ${AGENT_COMPUTER_IMAGE:-ghcr.io/aimeclabs/aimec-agent-computer:latest}
+    ports: ["${AGENT_COMPUTER_PORT:-8004}:8000"]
+    env_file: [.env]
+    depends_on:
+      platform: {condition: service_healthy}
+    extra_hosts: ["host.docker.internal:host-gateway"]
