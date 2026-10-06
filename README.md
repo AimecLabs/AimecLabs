@@ -67,3 +67,17 @@ We prefer explicit capabilities over opaque tool access, durable state over disp
 The goal is not another wrapper around an LLM.
 
 The goal is infrastructure that makes AI agents useful inside real systems.
+
+
+## Local cross-stack integration
+
+A root Docker Compose environment is available under `deploy/local` for the Intelligence Platform, World Model, Decision Engine, TimesFM Engine, and Agent Computer.
+
+```bash
+cd deploy/local
+cp .env.example .env
+docker compose up -d
+python smoke.py
+```
+
+Override the image variables in `.env` with locally built tags when required. Services that call Ollama use the host runtime at `host.docker.internal:11434`.

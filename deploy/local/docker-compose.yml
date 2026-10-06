@@ -1,0 +1,106 @@
+name: aimec-local-stack
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: world_model
+      MYSQL_USER: world_model
+      MYSQL_PASSWORD: world_model
+      MYSQL_ROOT_PASSWORD: local_root_only
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -plocal_root_only"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes: [world_model_mysql:/var/lib/mysql]
+
+  platform:
+    build:
+      context: https://github.com/AimecLabs/aimec-intelligence-platform.git#main
+    ports: ["${AIMEC_PLATFORM_PORT:-8000}:8000"]
+    environment:
+      AIMEC_RUNTIME_DB: /data/aimec-runtime.db
+    volumes: [platform_data:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  nimble:
+    build:
+      context: https://github.com/AimecLabs/aimec-nimble-engine.git#main
+      dockerfile: dockerfile
+      args:
+        UV_DOCKER_IMAGE: ghcr.io/astral-sh/uv:0.10.0
+        PYTHON_DOCKER_IMAGE: python:3.12-slim
+    ports: ["${NIMBLE_PORT:-8002}:8000"]
+    environment:
+      API_PORT: 8000
+      OLLAMA_URL: http://host.docker.internal:11434
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
+  timesfm:
+    build:
+      context: https://github.com/AimecLabs/timesfm-engine.git#main
+    ports: ["${TIMESFM_PORT:-8003}:8000"]
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
+      LOG_LEVEL: INFO
+      TIMESFM_CHECKPOINT: google/timesfm-3.0-pytorch
+      TIMESFM_DEVICE: cpu
+      TIMESFM_PRELOAD: "false"
+      HF_HOME: /app/data/huggingface
+    volumes: [timesfm_cache:/app/data/huggingface]
+
+  world_model:
+    build:
+      context: https://github.com/AimecLabs/world-model.git#main
+    ports: ["${WORLD_MODEL_PORT:-8001}:8000"]
+    environment:
+      DATABASE_URL: mysql+aiomysql://world_model:world_model@mysql:3306/world_model
+      CAPABILITY_PLATFORM_BASE_URL: http://platform:8000
+      TIMESFM_BASE_URL: http://timesfm:8000
+      NIMBLE_BASE_URL: http://nimble:8000
+    depends_on:
+      mysql: {condition: service_healthy}
+      platform: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  steel:
+    image: ghcr.io/steel-dev/steel-browser:latest
+    shm_size: 2gb
+
+  agent_computer:
+    build:
+      context: https://github.com/AimecLabs/aimec-agent-computer.git#main
+      dockerfile: docker/app/dockerfile
+    ports: ["${AGENT_COMPUTER_PORT:-8004}:8000"]
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
+      AUTH_MODE: bearer
+      API_BEARER_TOKEN: local_integration_token_change_before_remote_use
+      WATCH_TOKEN_SECRET: local_integration_watch_secret_change_before_remote_use
+      DATABASE_PATH: /app/data/aimec_agent_computer.db
+      WORKSPACE_ROOT: /app/data/workspaces
+      CONTAINER_WORKSPACE_ROOT: /app/data/workspaces
+      OLLAMA_BASE_URL: http://host.docker.internal:11434/v1
+      STEEL_API_URL: http://steel:3000
+    depends_on:
+      platform: {condition: service_healthy}
+      steel: {condition: service_started}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    volumes: [agent_computer_data:/app/data]
+
+volumes:
+  platform_data:
+  world_model_mysql:
+  timesfm_cache:
+  agent_computer_data:
