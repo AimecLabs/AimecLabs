@@ -17,7 +17,7 @@ services:
 
   platform:
     build:
-      context: https://github.com/AimecLabs/aimec-intelligence-platform.git#roadmap-containerize-platform-20261006
+      context: https://github.com/AimecLabs/aimec-intelligence-platform.git#main
     ports: ["${AIMEC_PLATFORM_PORT:-8000}:8000"]
     environment:
       AIMEC_RUNTIME_DB: /data/aimec-runtime.db
@@ -73,9 +73,13 @@ services:
       timeout: 5s
       retries: 20
 
+  steel:
+    image: ghcr.io/steel-dev/steel-browser:latest
+    shm_size: 2gb
+
   agent_computer:
     build:
-      context: https://github.com/AimecLabs/aimec-agent-computer.git#main
+      context: https://github.com/AimecLabs/aimec-agent-computer.git#roadmap-container-defaults-20261006
       dockerfile: docker/app/dockerfile
     ports: ["${AGENT_COMPUTER_PORT:-8004}:8000"]
     environment:
@@ -91,6 +95,7 @@ services:
       STEEL_API_URL: http://steel:3000
     depends_on:
       platform: {condition: service_healthy}
+      steel: {condition: service_started}
     extra_hosts: ["host.docker.internal:host-gateway"]
     volumes: [agent_computer_data:/app/data]
 
